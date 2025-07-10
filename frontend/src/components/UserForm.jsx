@@ -12,12 +12,20 @@ function UserForm() {
     formData.append("name",form.name);
     formData.append("email",form.email);
     formData.append("password",form.name);
-    formData.append("photo",photo);
+
+    if (photo){
+      formData.append("photo",photo);
+    }
     console.log(formData);  
-    await axios.post("http://localhost:5000/api/users", formData, {headers: {"Content-Type":"multipart/form-data"}});
-    setForm({ name: "", email: "", password: "" });
-    setPhoto(null);
-    console.log("after submit")
+    try{
+      await axios.post("http://localhost:5000/api/users", formData, {headers: {"Content-Type":"multipart/form-data"}});
+      setForm({ name: "", email: "", password: "" });
+      setPhoto(null);
+      console.log("after submit")
+    } catch(err){
+        console.error("Error submitting form:", err);
+
+    }
   };
 
   return (

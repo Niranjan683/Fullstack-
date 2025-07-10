@@ -15,7 +15,7 @@ function ProfilePage(){
             const res = await axios.get(`http://localhost:5000/api/users/${id}`)
             setUser(res.data);
 
-            setImageUrl(`http://localhost:5000/api/users/${id}/photo`);
+            setImageUrl(`http://localhost:5000/uploads/${res.data.photo}`);
         }
 
         fetchUser();

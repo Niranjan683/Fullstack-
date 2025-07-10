@@ -2,10 +2,12 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
 const multer = require ("multer")
-
+const path = require("path")
 const app = express();
+
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 const db = mysql.createConnection({
   host: "localhost",
@@ -17,13 +19,22 @@ const db = mysql.createConnection({
 //  We’re using memory storage so we can store the image as a BLOB in MySQL directly.
 
 
-const upload = multer({ storage: multer.memoryStorage() });
+const storage =multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "_" + file.originalname;
+    cb(null, uniqueName);
+  }
+});
 
 db.connect(err => {
   if (err) throw err;
   console.log("MySQL connected");
 });
 
+//app.use("/uploads", express.static("uploads"));
+
+const upload = multer({ storage});
 
 /* THE API from  UserForm.jsx*/ 
 app.post("/api/users",upload.single("photo"), (req, res) => {  // formData.append("photo", file); -----> Extracts the file, parse it, Puts in side req.file
@@ -32,9 +43,11 @@ app.post("/api/users",upload.single("photo"), (req, res) => {  // formData.appen
   //console.log(req.body) ---> req.body = {name: 'Niranjan',email: 'x@y.com',password: '123'}
   //console.log(req.file) ----> req.file = { fieldname: 'photo', originalname: 'profile.jpg', mimetype: 'image/jpeg', buffer: <Buffer ...>(binary data...)}
   const { name, email, password } = req.body;
-  const photo = req.file?.buffer || null;
+  console.log("post post")
+  const photoFilename = req.file ? req.file.filename : null;
+  
   const sql = "INSERT INTO users (name, email, user_password, photo) VALUES (?, ?, ?, ?)";
-  db.query(sql, [name, email, password, photo], (err, result) => {
+  db.query(sql, [name, email, password, photoFilename], (err, result) => {
     if (err) return res.status(500).json({error: "database error"});
     res.json({message: "User created successfully"});
   });
@@ -47,7 +60,7 @@ app.get("/api/users", (req, res) => {
   db.query("SELECT * FROM users", (err, results) => {
     if (err) return res.status(500).send(err);
     res.json(results);
-    console.log(res.json(results))
+    // console.log(res.json(results))
   });
 });
 
@@ -55,7 +68,7 @@ app.get("/api/users", (req, res) => {
 /* the API from ProfilePage */
 app.get("/api/users/:id", (req, res) =>{
   const id = req.params.id;
-  db.query("SELECT id, name, email FROM users WHERE id= ?", [id], (err, result) =>{
+  db.query("SELECT id, name, email, photo FROM users WHERE id= ?", [id], (err, result) =>{
     if (err || result.length ===0){
       return res.status(404).json({error: "User not found"})
     }
@@ -64,17 +77,19 @@ app.get("/api/users/:id", (req, res) =>{
   });
 });
 
-app.get("/api/users/:id/photo", (req, res) => {
-  const id = req.params.id;
-  db.query("SELECT photo FROM users WHERE id = ?", [id], (err, result) => {
-    if (err || result.length === 0 || !result[0].photo) {
-      return res.status(404).send("Image not found");
-    }
-    console.log("in server res :id/photo " + result)
-    res.set("Content-Type", "image/jpeg"); // or image/png
-    res.send(result[0].photo);
-  });
-});
+
+// this code was used to store the images directly in db 
+// app.get("/api/users/:id/photo", (req, res) => {
+//   const id = req.params.id;
+//   db.query("SELECT photo FROM users WHERE id = ?", [id], (err, result) => {
+//     if (err || result.length === 0 || !result[0].photo) {
+//       return res.status(404).send("Image not found");
+//     }
+//     console.log("in server res :id/photo " + result)
+//     res.set("Content-Type", "image/jpeg"); // or image/png
+//     res.send(result[0].photo);
+//   });
+// });
 
 /* The update API from AdminPage.jsx */
 app.put("/api/users/:id", upload.single("photo"), (req, res) => {
@@ -83,11 +98,12 @@ app.put("/api/users/:id", upload.single("photo"), (req, res) => {
   console.log("Update put")
   let sql;
   let values;
-
+  
   if (req.file) {
     // If a new image is uploaded
+    const photo = req.file.filename;
     sql = "UPDATE users SET name = ?, email = ?, user_password = ?, photo = ? WHERE id = ?";
-    values = [name, email, password, req.file.buffer, id];
+    values = [name, email, password, photo, id];
   } else {
     // If no image is uploaded, only update text fields
     sql = "UPDATE users SET name = ?, email = ?, user_password = ? WHERE id = ?";
