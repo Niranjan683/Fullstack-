@@ -28,7 +28,7 @@ function ProfilePage(){
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
       <div className="bg-white p-8 rounded-lg shadow-md text-center">
         <img
-          src={imageUrl}
+          src={imageUrl }
           alt="User"
           className="w-48 h-48 object-cover rounded-full mb-4"
         />

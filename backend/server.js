@@ -24,6 +24,8 @@ db.connect(err => {
   console.log("MySQL connected");
 });
 
+
+/* THE API from  UserForm.jsx*/ 
 app.post("/api/users",upload.single("photo"), (req, res) => {  // formData.append("photo", file); -----> Extracts the file, parse it, Puts in side req.file
   // console.log(req)                                             // Meanwhile, text fields like name, email, password go into req.body.
   
@@ -39,14 +41,18 @@ app.post("/api/users",upload.single("photo"), (req, res) => {  // formData.appen
 });
 
 
+/* The API from AdminPage.jsx to fetch the list of users */
 // getting the data from the DATABASE
 app.get("/api/users", (req, res) => {
   db.query("SELECT * FROM users", (err, results) => {
     if (err) return res.status(500).send(err);
     res.json(results);
+    console.log(res.json(results))
   });
 });
 
+
+/* the API from ProfilePage */
 app.get("/api/users/:id", (req, res) =>{
   const id = req.params.id;
   db.query("SELECT id, name, email FROM users WHERE id= ?", [id], (err, result) =>{
@@ -70,16 +76,32 @@ app.get("/api/users/:id/photo", (req, res) => {
   });
 });
 
-
-
-app.put("/api/users/:id", (req, res) => {
+/* The update API from AdminPage.jsx */
+app.put("/api/users/:id", upload.single("photo"), (req, res) => {
   const { name, email, password } = req.body;
-  const sql = "UPDATE users SET name = ?, email = ?, user_password = ? WHERE id = ?";
-  db.query(sql, [name, email, password, req.params.id], (err, result) => {
-    if (err) return res.status(500).send(err);
+  const id = req.params.id;
+  console.log("Update put")
+  let sql;
+  let values;
+
+  if (req.file) {
+    // If a new image is uploaded
+    sql = "UPDATE users SET name = ?, email = ?, user_password = ?, photo = ? WHERE id = ?";
+    values = [name, email, password, req.file.buffer, id];
+  } else {
+    // If no image is uploaded, only update text fields
+    sql = "UPDATE users SET name = ?, email = ?, user_password = ? WHERE id = ?";
+    values = [name, email, password, id];
+  }
+
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("Update error:", err);
+      return res.status(500).send("Error updating user");
+    }
     res.send("User updated");
   });
-});
+}); 
 
 app.delete("/api/users/:id", (req, res) => {
   db.query("DELETE FROM users WHERE id = ?", [req.params.id], (err, result) => {
